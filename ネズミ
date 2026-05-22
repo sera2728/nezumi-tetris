@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🐭 ねずみのピクセルアドベンチャー</title>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;500;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+        body{font-family:'Urbanist', 'Noto Sans JP', sans-serif;background:#060614;display:flex;justify-content:center;min-height:100vh;color:#cbd5e0;}
+        #wrap{display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:10px;}
+        #music-bar{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;}
+        .mbtn{font-size:10px;padding:4px 8px;border:0.5px solid #334;border-radius:6px;cursor:pointer;background:transparent;color:#9ab;}
+        .mbtn:hover{background:#111a33;}
+        .mbtn.active{background:#1a2a4a;border-color:#4488cc;color:#88ccff;}
+        #main-row{display:flex;gap:10px;align-items:flex-start;}
+        
+        /* 💡 メイン冒険エリア (220x440px) */
+        #adventure-wrap{position:relative;display:inline-block;width:220px;height:440px;border:0.5px solid #334;border-radius:6px;background:url('pixel_cave_bg.png') no-repeat center/cover;}
+        canvas#board{display:block;}
+        #pause-overlay{display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,15,0.75);border-radius:6px;align-items:center;justify-content:center;flex-direction:column;gap:8px;}
+        #pause-overlay.show{display:flex;}
+        #pause-overlay p{color:#eef;font-size:16px;font-weight:500;}
+        #pause-overlay span{color:#7788aa;font-size:11px;}
+        
+        /* 💡 左サイドパネル (72px幅) */
+        #left-side{display:flex;flex-direction:column;gap:4px;width:72px;}
+        .stat{background:#111a33;border-radius:6px;padding:4px 7px;}
+        .stat-label{font-size:9px;color:#7788aa;margin-bottom:1px;}
+        .stat-val{font-size:16px;font-weight:500;color:#eef;}
+        #nezumi-icon{width:50px;height:50px;border:0.5px solid #334;border-radius:6px;background:url('nezumi_pixel_3_bustup.png') no-repeat center/cover;margin:0 auto 1px;}
+        #item-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:2px;}
+        .item-slot{width:22px;height:22px;border:0.5px solid #334;border-radius:4px;background:#111a33;display:flex;align-items:center;justify-content:center;font-size:12px;color:#7788aa;}
+        
+        /* 💡 右サイドパネル (72px幅) */
+        #right-side{display:flex;flex-direction:column;gap:4px;width:72px;}
+        canvas#next-canvas{border:0.5px solid #334;border-radius:6px;display:block;background:#0a0a2e;}
+        .sbtn{width:72px;font-size:10px;padding:5px 0;border:0.5px solid #334;border-radius:6px;cursor:pointer;background:transparent;color:#ccd;text-align:center;}
+        .sbtn:hover{background:#111a33;}
+        .sbtn.active{background:#1a2a4a;border-color:#4466aa;color:#aaddff;}
+        
+        /* 💡 下部操作エリア */
+        #bottom{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;}
+        #speed-row{display:flex;align-items:center;gap:5px;}
+        #speed-row label{font-size:10px;color:#7788aa;}
+        #speed-val{font-size:10px;color:#aaddff;min-width:34px;}
+        input[type=range]{width:70px;}
+        
+        #controls{display:flex;align-items:center;justify-content:space-between;width:100%;margin:0 auto;max-width:320px;gap:0;}
+        .crow{display:flex;flex-direction:column;gap:5px;align-items:center;}
+        .cbtn{width:54px;height:54px;border:0.5px solid #334;border-radius:10px;background:#111a33;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;user-select:none;color:#eef;}
+        .cbtn:active{background:#1a2a4a;border-color:#4466aa;}
+        #btn-shot{width:54px;height:114px;font-size:12px;font-weight:500;letter-spacing:1px;}
+        
+        /* 💡 下部会話エリア */
+        #talk-area{display:flex;gap:10px;align-items:flex-start;width:100%;max-width:320px;margin-top:5px;}
+        #talk-nezumi-icon{width:50px;height:50px;border:0.5px solid #334;border-radius:6px;background:url('nezumi_pixel_3_bustup_face_1.png') no-repeat center/cover;}
+        #talk-window{flex-grow:1;border:0.5px solid #334;border-radius:6px;background:#111a33;padding:5px;display:flex;flex-direction:column;gap:5px;}
+        #talk-text{font-size:12px;color:#eef;line-height:1.4;}
+        #talk-options{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
+        .talk-opt-btn{font-size:10px;padding:4px;border:0.5px solid #334;border-radius:4px;cursor:pointer;background:transparent;color:#9ab;text-align:left;}
+        .talk-opt-btn:hover{background:#1a2a4a;}
+        
+    </style>
+</head>
+<body>
+<div id="wrap">
+    <div id="music-bar">
+        <button class="mbtn active" id="m0">🎵 ポップ</button>
+        <button class="mbtn" id="m1">🎸 ロック</button>
+        <button class="mbtn" id="m2">🌙 チル</button>
+        <button class="mbtn" id="m3">🎹 クラシック</button>
+        <button class="mbtn" id="m4">🔇 なし</button>
+    </div>
+    <div id="main-row">
+        <div id="left-side">
+            <div id="nezumi-icon"></div>
+            <div class="stat"><div class="stat-label">好感度</div><div class="stat-val" id="love">0</div></div>
+            <div class="stat"><div class="stat-label">Lv</div><div class="stat-val" id="level">1</div></div>
+            <div class="stat"><div class="stat-label">ライン</div><div class="stat-val" id="lines">0</div></div>
+            <div style="font-size:9px;color:#7788aa;text-align:center;">アイテム</div>
+            <div id="item-list">
+                <div class="item-slot">🧀</div>
+                <div class="item-slot">🔑</div>
+                <div class="item-slot">🪓</div>
+                <div class="item-slot">🧣</div>
+                <div class="item-slot"></div>
+                <div class="item-slot"></div>
+            </div>
+        </div>
+        <div id="adventure-wrap">
+            <canvas id="board" width="220" height="440"></canvas>
+            <div id="pause-overlay">
+                <p>⏸ PAUSE</p>
+                <span>もう一度タップで再開</span>
+            </div>
+        </div>
+        <div id="right-side">
+            <div style="font-size:9px;color:#7788aa;text-align:center;">つぎ</div>
+            <canvas id="next-canvas" width="70" height="70"></canvas>
+            <button id="startbtn" class="sbtn">スタート🐭</button>
+            <button id="pausebtn" class="sbtn">⏸ 一時停止</button>
+            <button id="mutebtn" class="sbtn">🔊 音あり</button>
+            <button id="speedbtn" class="sbtn active">⚡ 加速あり</button>
+        </div>
+    </div>
+    <div id="bottom">
+        <div id="speed-row">
+            <label>速度</label>
+            <input type="range" id="speed-slider" min="1" max="5" step="1" value="3">
+            <span id="speed-val">ふつう</span>
+        </div>
+        <div id="controls">
+            <div class="cbtn" id="btn-shot">SHOT!</div>
+            <div class="crow">
+                <div class="cbtn" id="btn-rotate">↻</div>
+                <div style="display:flex;gap:5px;">
+                    <div class="cbtn" id="btn-left">←</div>
+                    <div class="cbtn" id="btn-down">⬇</div>
+                    <div class="cbtn" id="btn-right">→</div>
+                </div>
+            </div>
+        </div>
+        <div id="talk-area">
+            <div id="talk-nezumi-icon"></div>
+            <div id="talk-window">
+                <div id="talk-text">「こんにちは！ここから先は、このパズルで障害物を排除して進むんだって。一緒にがんばってくれる？」</div>
+                <div id="talk-options">
+                    <button class="talk-opt-btn">「もちろん！任せて」</button>
+                    <button class="talk-opt-btn">
+はい、こちらが「ねずみテトリス」の新しいデザイン候補を反映したイメージ画像です。
+
+元の絵文字ベースのデザインから、3つの新しいスタイル（イラスト調、ぬいぐるみ調、ピクセルアート調）がゲーム内にどのように適用されるかを示しています。神様、どのデザインがお好みでしょうか？
